@@ -3,7 +3,7 @@
 from functions import my_functions, design
 import numpy as np
 import seaborn as sns
-import scipy
+import scipy.signal as sci_sig
 from dash import Dash, Input, Output, State
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -147,7 +147,7 @@ def plot_data(n,lag,w, sig, faster, x_data):
         fig_data2 = base64.b64encode(buf.getbuffer()).decode("ascii")
         fig_bar_matplotlib2 = f'data:image/png;base64,{fig_data2}'
 
-        peaks, _ = scipy.signal.find_peaks(df.loc[w], height=[sig])
+        peaks, _ = sci_sig.find_peaks(df.loc[w], height=[sig])
         fig3 = plt.figure(figsize=(10, 3))
         ax = sns.lineplot(
             data=df.loc[w],
@@ -199,65 +199,68 @@ def plot_data(n,lag,w, sig, faster, x_data):
         mins_vec = []
         state_dic = {}
 
-        while len(segments) > 1:
-            dist_matrix = np.ones((len(segments), len(segments)))
-            for i in range(0, len(segments)):
-                for j in range(i + 1, len(segments)):
-                    if (segments[i][0], segments[j][0]) not in cal_list:
-                        cal_list[(segments[i][0], segments[j][0])] = my_functions.emd_dist(segments[i], segments[j],sen)
-                    dist_matrix[i, j] = cal_list[(segments[i][0], segments[j][0])]
-                    data_points.append((itr, dist_matrix[i, j]))
-            matrices.append(dist_matrix)
-            labels.append([b[1] for b in segments])
-            min_dist_ind = np.unravel_index(np.argmin(dist_matrix, axis=None), dist_matrix.shape)
-            mins_vec.append(dist_matrix[min_dist_ind])
-            m_dend.append([segments[min_dist_ind[0]][1], segments[min_dist_ind[1]][1], dist_matrix[min_dist_ind],
-                           len(segments[min_dist_ind[0]][2]) + len(segments[min_dist_ind[1]][2])])
-            state_dic[state] = ((segments[min_dist_ind[0]][1], len(segments[min_dist_ind[0]][2])),
-                                (segments[min_dist_ind[1]][1], len(segments[min_dist_ind[1]][2])))
-            segments = [segments[k] for k in range(0, len(segments)) if
-                        (k != min_dist_ind[0] and k != min_dist_ind[1])] + [((segments[min_dist_ind[0]][0],
-                                                                              segments[min_dist_ind[1]][0]), state,
-                                                                             pd.concat([segments[min_dist_ind[0]][2],
-                                                                                        segments[min_dist_ind[1]][2]]))]
-            state = state + 1
-            itr += 1
-            print("hi")
+        if len(segments) >1:
+            while len(segments) > 1:
+                dist_matrix = np.ones((len(segments), len(segments)))
+                for i in range(0, len(segments)):
+                    for j in range(i + 1, len(segments)):
+                        if (segments[i][0], segments[j][0]) not in cal_list:
+                            cal_list[(segments[i][0], segments[j][0])] = my_functions.emd_dist(segments[i], segments[j],sen)
+                        dist_matrix[i, j] = cal_list[(segments[i][0], segments[j][0])]
+                        data_points.append((itr, dist_matrix[i, j]))
+                matrices.append(dist_matrix)
+                labels.append([b[1] for b in segments])
+                min_dist_ind = np.unravel_index(np.argmin(dist_matrix, axis=None), dist_matrix.shape)
+                mins_vec.append(dist_matrix[min_dist_ind])
+                m_dend.append([segments[min_dist_ind[0]][1], segments[min_dist_ind[1]][1], dist_matrix[min_dist_ind],
+                               len(segments[min_dist_ind[0]][2]) + len(segments[min_dist_ind[1]][2])])
+                state_dic[state] = ((segments[min_dist_ind[0]][1], len(segments[min_dist_ind[0]][2])),
+                                    (segments[min_dist_ind[1]][1], len(segments[min_dist_ind[1]][2])))
+                segments = [segments[k] for k in range(0, len(segments)) if
+                            (k != min_dist_ind[0] and k != min_dist_ind[1])] + [((segments[min_dist_ind[0]][0],
+                                                                                  segments[min_dist_ind[1]][0]), state,
+                                                                                 pd.concat([segments[min_dist_ind[0]][2],
+                                                                                            segments[min_dist_ind[1]][2]]))]
+                state = state + 1
+                itr += 1
+                print("hi")
 
-        new = (x_state, x_state, pd.Series(list(itertools.chain.from_iterable([x[2] for x in bins[last_p:]]))))
-        new_ids = [item for b in bins[last_p:] for item in b[2].index]
-        segments.append(new)
-        segments_ids.append(new_ids)
+            new = (x_state, x_state, pd.Series(list(itertools.chain.from_iterable([x[2] for x in bins[last_p:]]))))
+            new_ids = [item for b in bins[last_p:] for item in b[2].index]
+            segments.append(new)
+            segments_ids.append(new_ids)
 
-        # fig = plt.figure(figsize=(9, 8))
-        ittr = 0
+            # fig = plt.figure(figsize=(9, 8))
+            ittr = 0
 
-        # order = [labels[ittr].index(i) for i in list_vec[ittr]]
+            # order = [labels[ittr].index(i) for i in list_vec[ittr]]
 
-        new_m = matrices[ittr]
-        for i in range(0, len(matrices[ittr])):
-            for j in range(i, len(matrices[ittr][i])):
-                if i == j:
-                    new_m[j, i] = 0
-                else:
-                    new_m[j, i] = new_m[i, j]
+            new_m = matrices[ittr]
+            for i in range(0, len(matrices[ittr])):
+                for j in range(i, len(matrices[ittr][i])):
+                    if i == j:
+                        new_m[j, i] = 0
+                    else:
+                        new_m[j, i] = new_m[i, j]
 
-        cmap = plt.cm.Reds
-        fig4 = plt.figure(figsize=(7, 7))
-        ax = sns.heatmap(new_m, cmap=cmap, xticklabels=['seg' + str(i) for i in range(1, new_m.shape[0] + 1)],
-                         yticklabels=['seg' + str(i) for i in range(1, new_m.shape[0] + 1)])
+            cmap = plt.cm.Reds
+            fig4 = plt.figure(figsize=(7, 7))
+            ax = sns.heatmap(new_m, cmap=cmap, xticklabels=['seg' + str(i) for i in range(1, new_m.shape[0] + 1)],
+                             yticklabels=['seg' + str(i) for i in range(1, new_m.shape[0] + 1)])
 
 
-        fig4.suptitle('segments comparison', fontsize=20)
-        plt.xticks(fontsize=16)
-        plt.yticks(fontsize=16)
-        cbar = ax.collections[0].colorbar
-        cbar.ax.tick_params(labelsize=16)
-        buf = BytesIO()
-        fig4.savefig(buf, format="png", bbox_inches = 'tight')
-        # Embed the result in the html output.
-        fig_data4 = base64.b64encode(buf.getbuffer()).decode("ascii")
-        fig_bar_matplotlib4 = f'data:image/png;base64,{fig_data4}'
+            fig4.suptitle('segments comparison', fontsize=20)
+            plt.xticks(fontsize=16)
+            plt.yticks(fontsize=16)
+            cbar = ax.collections[0].colorbar
+            cbar.ax.tick_params(labelsize=16)
+            buf = BytesIO()
+            fig4.savefig(buf, format="png", bbox_inches = 'tight')
+            # Embed the result in the html output.
+            fig_data4 = base64.b64encode(buf.getbuffer()).decode("ascii")
+            fig_bar_matplotlib4 = f'data:image/png;base64,{fig_data4}'
+        else:
+            fig_bar_matplotlib4 = []
 
     else:
         fig_bar_matplotlib = []

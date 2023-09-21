@@ -1,4 +1,4 @@
-case_id,risc,lifecycle:transition,trace,duration
+case_id,risk,lifecycle:transition,trace,duration
 1,7.09295862372,complete,"('create application', 'check documents', 'in-person appointment 1', 'request documents', 'in-person appointment 2')",44
 10,11.856513626,complete,"('create application', 'cancel appointment')",70
 100,0.308205441105,complete,"('create application', 'in-person appointment 1', 'check documents')",12
