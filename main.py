@@ -13,23 +13,41 @@ import matplotlib.pyplot as plt
 import base64
 from io import BytesIO
 import itertools
+import uuid
+import dash_uploader as du
+from pathlib import Path
+from dash import html
+import pm4py
+
+
+
+UPLOAD_FOLDER = "event logs"
+
 
 
 case_table = pd.DataFrame()
 
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = design.layout()
+du.configure_upload(app, UPLOAD_FOLDER)
 
 @app.callback(
     Output('output-data-upload', 'children'),
-    Input('upload-data', 'contents'),
-    State('upload-data', 'filename'),
-    State('upload-data', 'last_modified'),
+    [Input('upload-data', 'isCompleted')],
+    [State('upload-data', 'fileNames')],
+    [State('upload-data', 'upload_id')]
 )
-def import_data(list_of_contents, list_of_names, list_of_dates):
-    if list_of_contents is not None:
-        children = design.parse_contents(list_of_contents[0], list_of_names[0], list_of_dates[0])
-        return children
+def display_files(isCompleted, fileNames,uid):
+    if not isCompleted:
+        return
+    if fileNames is not None:
+        print(uid)
+        out = []
+        for filename in fileNames:
+            file = Path(UPLOAD_FOLDER) / "temp_log" / filename
+            out.append(file)
+        return design.upload_info(out[0])
+    return html.Ul(html.Li("No Files Uploaded Yet!"))
 
 @app.callback(
     Output(component_id='bar-graph-matplotlib', component_property='src'),
@@ -40,13 +58,14 @@ def import_data(list_of_contents, list_of_names, list_of_dates):
     State("my-slider", "value"),
     State("my-slider2", "value"),
     State("my-slider3", "value"),
-    Input("TF", "value"),
-    State('xaxis-data','value'),
+    State("TF", "value"),
+    State("TF2", "value"),
+    State('xaxis-data','value')
 )
-def plot_data(n,lag,w, sig, faster, x_data):
+def plot_data(n,lag,w, sig, faster, export, x_data):
     if x_data is not None:
         kpi = x_data
-        case_table = pd.read_csv("out.csv")
+        case_table = pd.read_csv('event logs/temp_log/out.csv')
         case_table = case_table.sort_values(by=[kpi])
         map_range = {}
         for i in range(0, 100, 1):
@@ -261,6 +280,17 @@ def plot_data(n,lag,w, sig, faster, x_data):
             fig_bar_matplotlib4 = f'data:image/png;base64,{fig_data4}'
         else:
             fig_bar_matplotlib4 = []
+        if export:
+            event_table = pd.read_csv('event logs/temp_log/out_event.csv')
+            i = 1
+            for id_set in segments_ids:
+                x_ids = set(case_table[case_table.index.isin(id_set)]['case_id'])
+                x_log = event_table[event_table['case_id'].isin(x_ids)]
+                x_log = pm4py.format_dataframe(x_log, case_id='case_id', activity_key='activity_name',timestamp_key='timestamp')
+                event_log = pm4py.convert_to_event_log(x_log)
+                pm4py.write_xes(event_log, 'event logs/exported_logs/seg' + str(i) + '.xes')
+                # x_log.to_csv('x' + str(i) + '.csv', index=False)
+                i += 1
 
     else:
         fig_bar_matplotlib = []

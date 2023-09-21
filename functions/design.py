@@ -4,6 +4,23 @@ from functions import my_functions
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 import base64
+import dash_uploader as du
+import pm4py
+import uuid
+from pathlib import Path
+
+
+
+
+def get_upload_component(id):
+    return du.Upload(
+        id=id,
+        max_file_size=500,  # 50 Mb
+        chunk_size=400,  # 4 MB
+        filetypes=["xes"],
+        # upload_id=uuid.uuid1(),  # Unique session id
+        upload_id="temp_log"
+    )
 
 
 def layout():
@@ -11,25 +28,17 @@ def layout():
         html.H1("Process Variant Identification", className='text-center text-primary mb-4',
                 style={'textAlign': 'center'}),
         html.H4("Upload the event log", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
-        html.Div([  # this code section taken from Dash docs https://dash.plotly.com/dash-core-components/upload
-            dcc.Upload(
-                id='upload-data',
-                children=html.Div([
-                    'Drag and Drop or ',
-                    html.A('Select Files')
-                ]),
-                style={
-                    'width': '100%',
-                    'height': '60px',
-                    'lineHeight': '60px',
-                    'borderWidth': '1px',
-                    'borderStyle': 'dashed',
-                    'borderRadius': '5px',
-                    'textAlign': 'center',
-                    'margin': '10px'
+        html.Div([
+            html.Div(
+                children=[
+                    get_upload_component("upload-data")
+                ],
+                style={  # wrapper div style
+                    "textAlign": "center",
+                    "width": "1200px",
+                    "padding": "10px",
+                    "display": "inline-block",
                 },
-                # Allow multiple files to be uploaded
-                multiple=True
             ),
             html.Div(id='output-data-upload'),
             dbc.Row([
@@ -56,33 +65,25 @@ def layout():
         ])
     ])
 
-def parse_contents(contents, filename, date):
-    content_type, content_string = contents.split(',')
 
-    decoded = base64.b64decode(content_string)
-    try:
-        if 'xes' in filename:
-            case_id_name = 'case:concept:name'
-            timestamp_name = 'time:timestamp'
-            acyivity_name = 'concept:name'
+def  upload_info(address):
+    case_id_name = 'case:concept:name'
+    timestamp_name = 'time:timestamp'
+    acyivity_name = 'concept:name'
 
-            log = import_from_string(decoded.decode('utf-8'))
-            case_table, event_table, map_info = my_functions.log_to_tables(log, parameters={'case_id': case_id_name,
-                                                                                            'timestamp': timestamp_name,
-                                                                                            'activity_name': acyivity_name})
-    except Exception as e:
-        print(e)
-        return html.Div([
-            'There was an error processing this file.'
-        ])
-    case_table.to_csv('out.csv', index=False)
+    log = pm4py.read_xes(str(address))
+    case_table, event_table, map_info = my_functions.log_to_tables(log, parameters={'case_id': case_id_name,
+                                                                                    'timestamp': timestamp_name,
+                                                                                    'activity_name': acyivity_name})
+    case_table.to_csv('event logs/temp_log/out.csv', index=False)
+    event_table.to_csv('event logs/temp_log/out_event.csv', index=False)
     return html.Div([
-            html.Hr(),
-            # html.P("Which process indicator?"),
-            html.H4("Which process indicator?", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
-            dcc.Dropdown(id='xaxis-data',
-                         options=[{'label': x, 'value': x} for x in case_table.columns]),
-            # For debugging, display the raw contents provided by the web browser
+        html.Hr(),
+        # html.P("Which process indicator?"),
+        html.H4("Which process indicator?", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
+        dcc.Dropdown(id='xaxis-data',
+                     options=[{'label': x, 'value': x} for x in case_table.columns]),
+        # For debugging, display the raw contents provided by the web browser
         html.H4("Select lag parameter!", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
         html.Div(
             [
@@ -132,6 +133,14 @@ def parse_contents(contents, filename, date):
                        ],
                        value=False
                        ),
+        html.H4("Export the segments?", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
+        dcc.RadioItems(id='TF2',
+                       options=[
+                           {'label': 'True', 'value': True},
+                           {'label': 'False', 'value': False}
+                       ],
+                       value=False
+                       ),
         html.Button(id="submit-button", children="Run"),
         html.Hr(),
-        ])
+    ])
