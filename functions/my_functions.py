@@ -34,6 +34,7 @@ def log_to_tables(log, parameters):
     case_table = df[list(case_attributes.union([case_id_name]))].groupby(by=[case_id_name]).first()
     case_table['trace'] = df.groupby(by=[case_id_name])[acyivity_name].apply(lambda x: tuple(list(x.astype(str))))
     case_table['duration'] = df.groupby(by=[case_id_name])[timestamp_name].apply(lambda x: int((x.iloc[-1] - x.iloc[0]).total_seconds() / time_unit))
+    case_table['n_events'] = df.groupby(by=[case_id_name])[timestamp_name].count()
     case_table = case_table.reset_index()
     case_table = case_table.rename(columns={case_id_name: output_case_id_name})
 

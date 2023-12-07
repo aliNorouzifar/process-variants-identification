@@ -8,6 +8,7 @@ import dash_uploader as du
 import pm4py
 import uuid
 from pathlib import Path
+import dash_daq as daq
 
 
 
@@ -66,7 +67,7 @@ def layout():
     ])
 
 
-def  upload_info(address):
+def upload_info(address):
     case_id_name = 'case:concept:name'
     timestamp_name = 'time:timestamp'
     acyivity_name = 'concept:name'
@@ -79,38 +80,30 @@ def  upload_info(address):
     event_table.to_csv('event logs/temp_log/out_event.csv', index=False)
     return html.Div([
         html.Hr(),
-        # html.P("Which process indicator?"),
         html.H4("Which process indicator?", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
         dcc.Dropdown(id='xaxis-data',
                      options=[{'label': x, 'value': x} for x in case_table.columns]),
         # For debugging, display the raw contents provided by the web browser
-        html.H4("Select lag parameter!", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
-        html.Div(
-            [
-                dcc.Slider(
-                    id='my-slider',
-                    min=1,
-                    max=20,
-                    step=1,
-                    value=1,
-                    vertical=False,
-                ),
-                html.Div(id='slider-output-container'),
-            ]),
-        html.H4("Select window size!", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
-        html.Div(
-            [
-                dcc.Slider(
-                    id='my-slider2',
-                    min=1,
-                    max=50,
-                    step=1,
-                    value=5,
-                    vertical=False,
-                ),
-                html.Div(id='slider-output-container2'),
-            ],
-        ),
+        html.H4("How many buckets?", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
+        html.Div([
+            daq.NumericInput(
+                id='my-numeric-input-1',
+                min=2,
+                max=len(case_table),
+                value=min(100,len(case_table))
+            ),
+            html.Div(id='numeric-input-output-1')
+        ]),
+        html.H4("Window size?", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
+        html.Div([
+            daq.NumericInput(
+                id='my-numeric-input-2',
+                min=0,
+                max=len(case_table)/2,
+                value=1
+            ),
+            html.Div(id='numeric-input-output-2')
+        ]),
         html.H4("What is a significant distance?", className='text-left bg-light mb-4', style={'textAlign': 'left'}),
         html.Div(
             [

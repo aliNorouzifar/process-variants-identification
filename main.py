@@ -20,9 +20,7 @@ from dash import html
 import pm4py
 
 
-
 UPLOAD_FOLDER = "event logs"
-
 
 
 case_table = pd.DataFrame()
@@ -55,26 +53,26 @@ def display_files(isCompleted, fileNames,uid):
     Output(component_id='bar-graph-matplotlib3', component_property='src'),
     Output(component_id='bar-graph-matplotlib4', component_property='src'),
     Input('submit-button','n_clicks'),
-    State("my-slider", "value"),
-    State("my-slider2", "value"),
+    State("my-numeric-input-1", "value"),
+    State("my-numeric-input-2", "value"),
     State("my-slider3", "value"),
     State("TF", "value"),
     State("TF2", "value"),
     State('xaxis-data','value')
 )
-def plot_data(n,lag,w, sig, faster, export, x_data):
+def plot_data(n,n_bin,w, sig, faster, export, x_data):
     if x_data is not None:
         kpi = x_data
         case_table = pd.read_csv('event logs/temp_log/out.csv')
         case_table = case_table.sort_values(by=[kpi])
         map_range = {}
-        for i in range(0, 100, 1):
-            map_range[i] = case_table[kpi].iloc[round((i / 100) * len(case_table[kpi]))]
-        map_range[100] = case_table[kpi].iloc[len(case_table[kpi]) - 1]
+        for i in range(0, n_bin, 1):
+            map_range[i] = case_table[kpi].iloc[round((i / n_bin) * len(case_table[kpi]))]
+        map_range[n_bin] = case_table[kpi].iloc[len(case_table[kpi]) - 1]
 
         from pm4py.algo.evaluation.earth_mover_distance import algorithm as emd_evaluator
 
-        num_bins = 100
+        num_bins = n_bin
         bin_size = round(len(case_table) / num_bins)
         point = 0
         bins = []
@@ -91,11 +89,10 @@ def plot_data(n,lag,w, sig, faster, export, x_data):
             point += bin_size
             i += 1
 
-        print('hi')
 
-        stride_q = lag
-        dist_vect = [0.0] * 100
-        pointer_vec = [i for i in range(0, 100)]
+        stride_q = 1
+        dist_vect = [0.0] * n_bin
+        pointer_vec = [i for i in range(0, n_bin)]
 
         if faster == True:
             sen = 0.01
@@ -106,8 +103,7 @@ def plot_data(n,lag,w, sig, faster, export, x_data):
         df = pd.DataFrame([dist_vect] * len(windows), columns=pointer_vec, index=windows)
         for window_q in windows:
             mid = window_q
-            print('wait')
-            while mid + window_q < 100:
+            while mid + window_q < (n_bin-window_q):
                 left = [item for b in bins[mid - window_q:mid] for item in b[2]]
                 right = [item for b in bins[mid:mid + window_q] for item in b[2]]
                 lang1 = pd.Series(left).value_counts(normalize=True)
@@ -133,7 +129,7 @@ def plot_data(n,lag,w, sig, faster, export, x_data):
         plt.ylabel('count', fontsize=18)
         plt.xticks(fontsize=16)
         plt.yticks(fontsize=16)
-        # plt.show()
+
 
         # Save it to a temporary buffer.
         buf = BytesIO()
@@ -147,8 +143,8 @@ def plot_data(n,lag,w, sig, faster, export, x_data):
         # sns.heatmap(np.array(dist_vect,ndmin=2), cmap="Reds", xticklabels=pointer_vec)
         # ax = sns.heatmap(df, cmap="Reds", xticklabels=pointer_vec)
         ax = sns.heatmap(df, cmap="Reds", mask=maskx)
-        ax.set_xticks(np.arange(0, 101, 5),
-                      labels=[str(x) + "% (" + str(round(map_range[x], 1)) + ")" for x in np.arange(0, 101, 5)])
+        ax.set_xticks(np.arange(0, n_bin+1, 5),
+                      labels=[str(x) + "% (" + str(round(map_range[x], 1)) + ")" for x in np.arange(0, n_bin+1, 5)])
         # ax.set_facecolor("whitesmoke")
         ax.set_facecolor("gray")
         fig2.suptitle('sliding window analysis', fontsize=20)
@@ -176,8 +172,8 @@ def plot_data(n,lag,w, sig, faster, export, x_data):
             # plt.axvline(x=xx, ymin=0, ymax=(df.loc[2][xx]/max(df.loc[2])), linestyle='--',color='r')
             plt.vlines(x=xx, ymin=0, ymax=df.loc[w][xx], linestyle='--', color='r')
 
-        ax.set_xticks(np.arange(0, 101, 5),
-                      labels=[str(x) + "% (" + str(round(map_range[x], 2)) + ")" for x in np.arange(0, 101, 5)])
+        ax.set_xticks(np.arange(0, n_bin+1, 5),
+                      labels=[str(x) + "% (" + str(round(map_range[x], 2)) + ")" for x in np.arange(0, n_bin+1, 5)])
         fig3.suptitle('peaks in EMD', fontsize=20)
         plt.xlabel('traces', fontsize=18)
         plt.ylabel('EMD', fontsize=18)
@@ -242,7 +238,6 @@ def plot_data(n,lag,w, sig, faster, export, x_data):
                                                                                             segments[min_dist_ind[1]][2]]))]
                 state = state + 1
                 itr += 1
-                print("hi")
 
             new = (x_state, x_state, pd.Series(list(itertools.chain.from_iterable([x[2] for x in bins[last_p:]]))))
             new_ids = [item for b in bins[last_p:] for item in b[2].index]
