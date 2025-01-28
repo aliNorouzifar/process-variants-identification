@@ -1,3 +1,7 @@
+### This repository is no longer maintained. For the latest version with additional features, please visit this repository: https://github.com/aliNorouzifar/X-PVI
+
+
+
 # process-variants-identification
 
 We used Python 3.8 for this project.
